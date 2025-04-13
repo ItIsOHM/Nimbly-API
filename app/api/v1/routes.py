@@ -1,13 +1,17 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter
 from app.services.manager import *
 
-router = APIRouter(
-    prefix="/instance"
-)
+router = APIRouter(prefix="/instance")
 
-@router.get("/")
-def get_router():
-    profile_name = create_session()
+@router.get("/identify")
+def get_identity():
+    identity = create_session()
     return {
-        "message" : f"session creaetd with profile name : {profile_name}"
+        "message"   : "session created",
+        "identity"  : f"{identity}"
     }
+
+@router.get("/create_resource")
+def create_resource():
+    result = create_bucket("demo-nimbly")
+    return {"buckets": result}
