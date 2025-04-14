@@ -26,7 +26,7 @@ def identify():
         return f"Invalid credentials or failed session: {str(e)}"
 
 
-def describe_instances(region: Region):
+def describe_instances(region: str):
     """
     Returns information about your EC2 instances in the given region.
     """
@@ -40,7 +40,7 @@ def describe_instances(region: Region):
     return response
 
 
-def describe_images(region: Region):
+def describe_images(region: str):
     """
     Returns the catalog of AMIs available to your account.
     """
@@ -144,7 +144,7 @@ def create_security_group(data: SecurityGroupRequest):
         return {"error": str(e), "message": "Could not create security group"}
 
 
-def get_all_keypairs(region):
+def get_all_keypairs(region: str):
     try:
         ec2 = boto3.client("ec2", region_name=region)
 
@@ -153,3 +153,32 @@ def get_all_keypairs(region):
         return key_pairs
     except Exception as e:
         return {"error": str(e), "message": "Couldn't create key pair."}
+
+
+def delete_keypair(key_name: str, region: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+        response = ec2.delete_key_pair(KeyName=key_name)
+        return response
+    except Exception as e:
+        return {"error": str(e), "message": "Couldn't delete key pair."}
+
+
+def get_security_groups(region: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+        response = ec2.describe_security_groups()
+        return response
+    except Exception as e:
+        return {"error": str(e), "message": "Couldn't fetch security group(s)."}
+
+
+def get_security_group_rules(region: str, gid: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+        response = ec2.describe_security_group_rules(
+            Filters=[{"Name": "group-id", "Values": [gid]}]
+        )
+        return response
+    except Exception as e:
+        return {"error": str(e), "message": "Couldn't fetch security group rule(s)."}

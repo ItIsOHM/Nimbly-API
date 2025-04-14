@@ -6,9 +6,15 @@ from app.services.manager import *
 router = APIRouter(prefix="/instance")
 
 
+@router.get("/identify")
+def get_identity():
+    identity = identify()
+    return {"message": "identified!", "identity": f"{identity}"}
+
+
 @router.get("/")
-def describe(region: Region):
-    response = describe_instances(region.region)
+def describe(region: Annotated[str, Query()]):
+    response = describe_instances(region)
     return {"response": response}
 
 
@@ -28,16 +34,25 @@ def create_keypair_download(data: KeyPairRequest):
     return create_key_pair_as_file(data.key_name, data.region)
 
 
-@router.post("/images")
-def describe(region: Region):
-    response = describe_images(region.region)
+@router.delete("/keypair")
+def del_keypair(data: KeyPairRequest):
+    return delete_keypair(data.key_name, data.region)
+
+
+@router.get("/images")
+def describe(region: str):
+    response = describe_images(region)
     return {"response": response}
 
 
-@router.get("/identify")
-def get_identity():
-    identity = identify()
-    return {"message": "identified!", "identity": f"{identity}"}
+@router.get("/security-group")
+def get_sg(region: Annotated[str, Query()]):
+    return get_security_groups(region=region)
+
+
+@router.get("/security-group/{group_id}")
+def get_sg_rules(region: Annotated[str, Query()], group_id: str):
+    return get_security_group_rules(region=region, gid=group_id)
 
 
 @router.post("/security-group")
