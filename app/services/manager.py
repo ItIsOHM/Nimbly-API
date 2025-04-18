@@ -1,7 +1,7 @@
 from io import BytesIO
 from dotenv import load_dotenv
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, WaiterError
 import os
 import logging
 
@@ -74,7 +74,6 @@ def launch_ec2_instance(data: InstanceLaunchRequest):
         )
 
         instance = instances[0]
-
         instance.wait_until_running()
         instance.load()
 
@@ -89,6 +88,48 @@ def launch_ec2_instance(data: InstanceLaunchRequest):
             "error": str(e),
             "message": "Failed to launch instance. Check credentials, parameters, and limits.",
         }
+
+
+def start_ec2_instance(region: str, iid: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+
+        ec2.start_instances(InstanceIds=[iid])
+        waiter = ec2.get_waiter("instance_running")
+        waiter.wait(InstanceIds=[iid])
+
+        return {"instance_id": iid, "state": "running"}
+
+    except Exception as e:
+        return {"error": str(e), "message": f"Couldn't start instance: {iid}"}
+
+
+def stop_ec2_instance(region: str, iid: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+
+        ec2.stop_instances(InstanceIds=[iid])
+        waiter = ec2.get_waiter("instance_stopped")
+        waiter.wait(InstanceIds=[iid])
+
+        return {"instance_id": iid, "state": "stopped"}
+
+    except Exception as e:
+        return {"error": str(e), "message": f"Couldn't stop instance: {iid}"}
+
+
+def terminate_ec2_instance(region: str, iid: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+
+        ec2.terminate_instances(InstanceIds=[iid])
+        waiter = ec2.get_waiter("instance_terminated")
+        waiter.wait(InstanceIds=[iid])
+
+        return {"instance_id": iid, "state": "terminated"}
+
+    except Exception as e:
+        return {"error": str(e), "message": f"Couldn't terminate instance: {iid}"}
 
 
 def create_key_pair_as_file(key_name: str, region: str = "ap-south-1"):
@@ -182,3 +223,12 @@ def get_security_group_rules(region: str, gid: str):
         return response
     except Exception as e:
         return {"error": str(e), "message": "Couldn't fetch security group rule(s)."}
+
+
+def delete_security_group(region: str, gid: str):
+    try:
+        ec2 = boto3.client("ec2", region_name=region)
+        response = ec2.delete_security_group(GroupId=gid)
+        return response
+    except Exception as e:
+        return {"error": str(e), "message": "Couldn't delete security group(s)."}
