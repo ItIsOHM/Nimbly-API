@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field, constr
 from typing import Optional, Annotated
 
-InstanceId = Annotated[str, constr(regex=r"^i-[a-f0-9]{8,}$")]
-AmiId = Annotated[str, constr(regex=r"^ami-[a-f0-9]{8,}$")]
-SecurityGroupId = Annotated[str, constr(regex=r"^sg-[a-f0-9]{8,}$")]
-KeyName = Annotated[str, constr(min_length=3, max_length=255, regex=r"^[\w\-]+$")]
+InstanceId = Annotated[str, constr(pattern=r"^i-[a-f0-9]{8,}$")]
+AmiId = Annotated[str, constr(pattern=r"^ami-[a-f0-9]{8,}$")]
+SecurityGroupId = Annotated[str, constr(pattern=r"^sg-[a-f0-9]{8,}$")]
+KeyName = Annotated[str, constr(min_length=3, max_length=255, pattern=r"^[\w\-]+$")]
 GroupName = Annotated[str, constr(min_length=2, max_length=255)]
-Cidr = Annotated[str, Field(regex=r"^(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}$")]
+Cidr = Annotated[str, Field(pattern=r"^(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}$")]
 
 
 class InstanceLaunchRequest(BaseModel):

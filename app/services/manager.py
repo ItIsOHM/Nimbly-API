@@ -1,21 +1,19 @@
 from io import BytesIO
 from dotenv import load_dotenv
 import boto3
-from botocore.exceptions import ClientError, WaiterError
-import os
-import logging
 
 from fastapi.responses import StreamingResponse
 
-from app.models.ec2 import InstanceLaunchRequest, Region, SecurityGroupRequest
+from app.models.ec2 import InstanceLaunchRequest, SecurityGroupRequest
 
 load_dotenv()
 
 
-def identify():
+def identify(user: dict):
     session = boto3.Session(
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=user["region"],
+        aws_access_key_id=user["access_key"],
+        aws_secret_access_key=user["secret_key"],
     )
 
     try:
@@ -26,25 +24,30 @@ def identify():
         return f"Invalid credentials or failed session: {str(e)}"
 
 
-def describe_instances(region: str):
+def describe_instances(user: dict):
     """
     Returns information about your EC2 instances in the given region.
     """
     ec2 = boto3.client(
         "ec2",
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=region,
+        region_name=user["region"],
+        aws_access_key_id=user["access_key"],
+        aws_secret_access_key=user["secret_key"],
     )
     response = ec2.describe_instances()
     return response
 
 
-def describe_images(region: str):
+def describe_images(user: dict):
     """
     Returns the catalog of AMIs available to your account.
     """
-    ec2 = boto3.client("ec2", region_name=region)
+    ec2 = boto3.client(
+        "ec2",
+        region_name=user["region"],
+        aws_access_key_id=user["access_key"],
+        aws_secret_access_key=user["secret_key"],
+    )
 
     response = ec2.describe_images(
         Owners=["amazon"],
@@ -59,10 +62,15 @@ def describe_images(region: str):
     return response
 
 
-def launch_ec2_instance(data: InstanceLaunchRequest):
+def launch_ec2_instance(data: InstanceLaunchRequest, user: dict):
     """Launches an EC2 instance with the provided data."""
     try:
-        ec2 = boto3.resource("ec2", region_name=data.region)
+        ec2 = boto3.resource(
+            "ec2",
+            region_name=data.region,
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         instances = ec2.create_instances(
             ImageId=data.ami_id,
@@ -90,9 +98,14 @@ def launch_ec2_instance(data: InstanceLaunchRequest):
         }
 
 
-def start_ec2_instance(region: str, iid: str):
+def start_ec2_instance(iid: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         ec2.start_instances(InstanceIds=[iid])
         waiter = ec2.get_waiter("instance_running")
@@ -104,9 +117,14 @@ def start_ec2_instance(region: str, iid: str):
         return {"error": str(e), "message": f"Couldn't start instance: {iid}"}
 
 
-def stop_ec2_instance(region: str, iid: str):
+def stop_ec2_instance(iid: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         ec2.stop_instances(InstanceIds=[iid])
         waiter = ec2.get_waiter("instance_stopped")
@@ -118,9 +136,14 @@ def stop_ec2_instance(region: str, iid: str):
         return {"error": str(e), "message": f"Couldn't stop instance: {iid}"}
 
 
-def terminate_ec2_instance(region: str, iid: str):
+def terminate_ec2_instance(iid: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         ec2.terminate_instances(InstanceIds=[iid])
         waiter = ec2.get_waiter("instance_terminated")
@@ -132,9 +155,14 @@ def terminate_ec2_instance(region: str, iid: str):
         return {"error": str(e), "message": f"Couldn't terminate instance: {iid}"}
 
 
-def create_key_pair_as_file(key_name: str, region: str = "ap-south-1"):
+def create_key_pair_as_file(key_name: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         key_pair = ec2.create_key_pair(KeyName=key_name)
 
@@ -155,9 +183,14 @@ def create_key_pair_as_file(key_name: str, region: str = "ap-south-1"):
         return {"error": str(e), "message": "Couldn't create key pair."}
 
 
-def create_security_group(data: SecurityGroupRequest):
+def create_security_group(data: SecurityGroupRequest, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=data.region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         if not data.vpc_id:
             vpcs = ec2.describe_vpcs()
@@ -185,9 +218,14 @@ def create_security_group(data: SecurityGroupRequest):
         return {"error": str(e), "message": "Could not create security group"}
 
 
-def get_all_keypairs(region: str):
+def get_all_keypairs(user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
 
         key_pairs = ec2.describe_key_pairs()
 
@@ -196,27 +234,42 @@ def get_all_keypairs(region: str):
         return {"error": str(e), "message": "Couldn't create key pair."}
 
 
-def delete_keypair(key_name: str, region: str):
+def delete_keypair(key_name: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
         response = ec2.delete_key_pair(KeyName=key_name)
         return response
     except Exception as e:
         return {"error": str(e), "message": "Couldn't delete key pair."}
 
 
-def get_security_groups(region: str):
+def get_security_groups(user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
         response = ec2.describe_security_groups()
         return response
     except Exception as e:
         return {"error": str(e), "message": "Couldn't fetch security group(s)."}
 
 
-def get_security_group_rules(region: str, gid: str):
+def get_security_group_rules(gid: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
         response = ec2.describe_security_group_rules(
             Filters=[{"Name": "group-id", "Values": [gid]}]
         )
@@ -225,9 +278,14 @@ def get_security_group_rules(region: str, gid: str):
         return {"error": str(e), "message": "Couldn't fetch security group rule(s)."}
 
 
-def delete_security_group(region: str, gid: str):
+def delete_security_group(gid: str, user: dict):
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        ec2 = boto3.client(
+            "ec2",
+            region_name=user["region"],
+            aws_access_key_id=user["access_key"],
+            aws_secret_access_key=user["secret_key"],
+        )
         response = ec2.delete_security_group(GroupId=gid)
         return response
     except Exception as e:
